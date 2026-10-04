@@ -3,9 +3,10 @@ Un ecualizador de 5 bandas utilizando un microcontrolador ESP32, Potenciómetros
 
 En este momento solo se desarrolla con potenciometros y algunos capacitores, para poder utilizar lo demas hace falta un puerto Jack 3.5mm para conectarlo a um Amplificador de Audio 
 Materiales 
-+ = Usados
-- = No usados
-* + ESP32
-* + Potenciometro
-* + Capacitores
-* - Bocina 3W 4 Ohms
+*  ESP32
+*  Potenciometro
+*  Capacitores
+*  Bocina 3W 4 Ohms
+*  Amplificador de Audio
+*  Cables
+*  Jack 3.5mm
