@@ -5,36 +5,24 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-// ---------------------------------------------------------
-// CONFIGURACIÓN DE HARDWARE Y PINES
-// ---------------------------------------------------------
 const int potPins[5] = {32, 33, 34, 35, 36}; // Pines seguros del ADC1
-
+// Para el display o pantalla OLED de 0.96
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET    -1 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// ---------------------------------------------------------
-// VARIABLES DE DSP Y SUAVIZADO (Filtro Exponencial)
-// ---------------------------------------------------------
 float smoothedGains[5] = {1.0, 1.0, 1.0, 1.0, 1.0};
-const float alpha = 0.1; // Factor de suavizado (menor = más suave pero más lento)
+const float alpha = 0.1;
 
 unsigned long lastDSPUpdate = 0;
 unsigned long lastOledUpdate = 0;
-const int dspRefreshRate = 10;   // Leer potenciómetros cada 10ms
-const int oledRefreshRate = 50;  // Refrescar OLED cada 50ms (20 FPS)
-
-// ---------------------------------------------------------
-// CONFIGURACIÓN DE RED
-// ---------------------------------------------------------
+const int dspRefreshRate = 10;
+const int oledRefreshRate = 50;  
+//La Red que crea el ESP32
 const char* ssid = "ESP32-EQ-5Bandas";
 WebServer server(80);
-
-// ---------------------------------------------------------
-// INTERFAZ WEB EMBEBIDA (HTML, CSS, JS)
-// ---------------------------------------------------------
+//Pagina web con HTML CSS E JS
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="es">
@@ -101,14 +89,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
-
-// ---------------------------------------------------------
-// INICIALIZACIÓN (SETUP)
-// ---------------------------------------------------------
+//Inicializacion
 void setup() {
   Serial.begin(115200);
 
-  // Iniciar OLED
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("OLED no detectada. Revisa cableado I2C."));
   } else {
@@ -120,19 +104,15 @@ void setup() {
     display.display();
   }
 
-  // Iniciar Red AP
   WiFi.softAP(ssid);
   
-  // Endpoint de la interfaz HTML
   server.on("/", HTTP_GET, []() {
     server.send(200, "text/html", index_html);
   });
 
-  // Endpoint de la API JSON
   server.on("/datos", HTTP_GET, []() {
     String json = "{";
     for(int i=0; i<5; i++) {
-      // Enviamos el valor ya filtrado por software al navegador
       json += "\"b" + String(i) + "\":" + String(smoothedGains[i], 2);
       if(i < 4) json += ",";
     }
@@ -143,46 +123,32 @@ void setup() {
   server.begin();
 }
 
-// ---------------------------------------------------------
-// BUCLE PRINCIPAL (LOOP)
-// ---------------------------------------------------------
 void loop() {
-  // 1. Escuchar peticiones Web
   server.handleClient();
-
-  // 2. Leer potenciómetros y aplicar filtro exponencial (Cada 10ms)
   if (millis() - lastDSPUpdate > dspRefreshRate) {
     lastDSPUpdate = millis();
     
     for(int i = 0; i < 5; i++) {
       int raw = analogRead(potPins[i]);
-      float targetGain = (raw / 4095.0) * 2.0; // Convertir a ganancia 0.0 - 2.0
-      
-      // Ecuación del filtro exponencial para eliminar ruido
+      float targetGain = (raw / 4095.0) * 2.0;
       smoothedGains[i] = (alpha * targetGain) + ((1.0 - alpha) * smoothedGains[i]);
     }
   }
-
-  // 3. Actualizar la pantalla OLED (Cada 50ms)
+  
   if (millis() - lastOledUpdate > oledRefreshRate) {
     lastOledUpdate = millis();
-    
     display.clearDisplay();
     display.setTextSize(1);
     display.setCursor(0, 0);
     display.print(" DSP EQ 5-BANDAS");
-
-    // Dibujar las 5 barras en la OLED usando los valores filtrados
+    
     for(int i = 0; i < 5; i++) {
-      // Mapear de ganancia (0.0-2.0) a pixeles de altura (0-50)
       int barHeight = (smoothedGains[i] / 2.0) * 50; 
-      
       int xPos = 8 + (i * 24); 
       int yPos = 64 - barHeight;
       int width = 14;          
-      
-      display.drawRect(xPos, 14, width, 50, SSD1306_WHITE); // Contorno
-      display.fillRect(xPos, yPos, width, barHeight, SSD1306_WHITE); // Relleno
+      display.drawRect(xPos, 14, width, 50, SSD1306_WHITE);
+      display.fillRect(xPos, yPos, width, barHeight, SSD1306_WHITE);
     }
     
     display.display();
